@@ -1,0 +1,5 @@
+FROM python:3.11-slim
+WORKDIR /app
+RUN pip install --no-cache-dir "mcp>=1.28,<2"
+COPY servers/ servers/
+ENTRYPOINT ["python", "-m", "servers.workload_servers"]

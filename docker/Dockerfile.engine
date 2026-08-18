@@ -1,0 +1,9 @@
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir fastapi uvicorn pydantic httpx
+COPY engine/ engine/
+COPY services/ services/
+RUN touch engine/__init__.py services/__init__.py
+EXPOSE 8090
+CMD ["uvicorn", "services.policy_service:app", "--host", "0.0.0.0", "--port", "8090"]

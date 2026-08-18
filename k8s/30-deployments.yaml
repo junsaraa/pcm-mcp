@@ -1,0 +1,194 @@
+# ============================================================================
+# All seven namespaces populated. TCB pods run real code; the two model pods
+# and console are lightweight (the orchestrator Job drives the workload by
+# calling the engine's /run_workload, which invokes the Q-LLM logic in-process).
+# ============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: audit-pvc, namespace: mcp-policy}
+spec: {accessModes: [ReadWriteOnce], resources: {requests: {storage: 1Gi}}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: policy-engine, namespace: mcp-policy}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: policy-engine}}
+  template:
+    metadata: {labels: {app: policy-engine}}
+    spec:
+      serviceAccountName: policy-engine
+      containers:
+        - name: engine
+          image: mcpmon/engine:dev
+          imagePullPolicy: IfNotPresent
+          ports: [{containerPort: 8090}]
+          env:
+            - {name: AUDIT_PATH, value: /var/audit}
+            - {name: GUARDRAIL_BACKEND, value: mock}
+            - {name: MCP_MOCK, value: "1"}
+          volumeMounts: [{name: audit, mountPath: /var/audit}]
+          readinessProbe: {httpGet: {path: /healthz, port: 8090}, initialDelaySeconds: 3}
+      volumes: [{name: audit, persistentVolumeClaim: {claimName: audit-pvc}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: policy-engine, namespace: mcp-policy}
+spec: {selector: {app: policy-engine}, ports: [{port: 8090, targetPort: 8090}]}
+---
+# --- orchestrator (TCB): reaches only the engine ---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: orchestrator, namespace: mcp-orch}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: orchestrator}}
+  template:
+    metadata: {labels: {app: orchestrator}}
+    spec:
+      containers:
+        - name: orchestrator
+          image: mcpmon/engine:dev
+          command: ["python","-m","http.server","8080"]
+          ports: [{containerPort: 8080}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: orchestrator, namespace: mcp-orch}
+spec: {selector: {app: orchestrator}, ports: [{port: 8080, targetPort: 8080}]}
+---
+# --- mcp client (TCB) ---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: mcp-client, namespace: mcp-client}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: mcp-client}}
+  template:
+    metadata: {labels: {app: mcp-client}}
+    spec:
+      containers:
+        - name: client
+          image: mcpmon/engine:dev
+          command: ["python","-m","http.server","8070"]
+          ports: [{containerPort: 8070}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: mcp-client, namespace: mcp-client}
+spec: {selector: {app: mcp-client}, ports: [{port: 8070, targetPort: 8070}]}
+---
+# --- user console (authority) --- Service NOW created (was missing before) ---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: user-console, namespace: mcp-user}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: user-console}}
+  template:
+    metadata: {labels: {app: user-console}}
+    spec:
+      containers:
+        - name: console
+          image: mcpmon/engine:dev
+          command: ["python","-m","http.server","3000"]
+          ports: [{containerPort: 3000}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: user-console, namespace: mcp-user}
+spec: {selector: {app: user-console}, ports: [{port: 3000, targetPort: 3000}]}
+---
+# --- p-llm (untrusted) ---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: p-llm, namespace: mcp-planner}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: p-llm, role: model}}
+  template:
+    metadata: {labels: {app: p-llm, role: model}}
+    spec:
+      containers:
+        - name: model
+          image: mcpmon/engine:dev
+          command: ["python","-m","http.server","8000"]
+          ports: [{containerPort: 8000}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: p-llm, namespace: mcp-planner}
+spec: {selector: {app: p-llm}, ports: [{port: 8000, targetPort: 8000}]}
+---
+# --- q-llm (untrusted) ---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: q-llm, namespace: mcp-extractor}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: q-llm, role: model}}
+  template:
+    metadata: {labels: {app: q-llm, role: model}}
+    spec:
+      containers:
+        - name: model
+          image: mcpmon/engine:dev
+          command: ["python","-m","http.server","8000"]
+          ports: [{containerPort: 8000}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: q-llm, namespace: mcp-extractor}
+spec: {selector: {app: q-llm}, ports: [{port: 8000, targetPort: 8000}]}
+---
+# --- MCP servers (external): one per workload ---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: amazon-mcp, namespace: mcp-servers}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: amazon-mcp, kind: mcp-server}}
+  template:
+    metadata: {labels: {app: amazon-mcp, kind: mcp-server}}
+    spec:
+      containers:
+        - {name: server, image: mcpmon/servers:dev, args: ["amazon"], ports: [{containerPort: 8443}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: amazon-mcp, namespace: mcp-servers}
+spec: {selector: {app: amazon-mcp}, ports: [{port: 8443, targetPort: 8443}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: github-mcp, namespace: mcp-servers}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: github-mcp, kind: mcp-server}}
+  template:
+    metadata: {labels: {app: github-mcp, kind: mcp-server}}
+    spec:
+      containers:
+        - {name: server, image: mcpmon/servers:dev, args: ["github"], ports: [{containerPort: 8443}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: github-mcp, namespace: mcp-servers}
+spec: {selector: {app: github-mcp}, ports: [{port: 8443, targetPort: 8443}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: grammarly-mcp, namespace: mcp-servers}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: grammarly-mcp, kind: mcp-server}}
+  template:
+    metadata: {labels: {app: grammarly-mcp, kind: mcp-server}}
+    spec:
+      containers:
+        - {name: server, image: mcpmon/servers:dev, args: ["grammarly"], ports: [{containerPort: 8443}]}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: grammarly-mcp, namespace: mcp-servers}
+spec: {selector: {app: grammarly-mcp}, ports: [{port: 8443, targetPort: 8443}]}

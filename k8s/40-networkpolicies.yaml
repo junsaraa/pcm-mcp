@@ -1,0 +1,107 @@
+# THE ISOLATION ARGUMENT. Default-deny everywhere, then only required edges.
+# Models get an ingress rule and NO EGRESS RULE: they can answer but cannot
+# initiate a connection to anything. The Policy Engine connects to the servers.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: default-deny, namespace: mcp-planner}
+spec: {podSelector: {}, policyTypes: [Ingress, Egress]}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: model-ingress-only, namespace: mcp-planner}
+spec:
+  podSelector: {matchLabels: {role: model}}
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{namespaceSelector: {matchLabels: {name: mcp-policy}}}]
+      ports: [{protocol: TCP, port: 8000}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: default-deny, namespace: mcp-extractor}
+spec: {podSelector: {}, policyTypes: [Ingress, Egress]}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: model-ingress-only, namespace: mcp-extractor}
+spec:
+  podSelector: {matchLabels: {role: model}}
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{namespaceSelector: {matchLabels: {name: mcp-policy}}}]
+      ports: [{protocol: TCP, port: 8000}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: default-deny, namespace: mcp-policy}
+spec: {podSelector: {}, policyTypes: [Ingress, Egress]}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: engine-rules, namespace: mcp-policy}
+spec:
+  podSelector: {matchLabels: {app: policy-engine}}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - {namespaceSelector: {matchLabels: {name: mcp-user}}}
+        - {namespaceSelector: {matchLabels: {name: mcp-orch}}}
+        - {namespaceSelector: {matchLabels: {name: mcp-client}}}
+      ports: [{protocol: TCP, port: 8090}]
+  egress:
+    - to:
+        - {namespaceSelector: {matchLabels: {name: mcp-planner}}}
+        - {namespaceSelector: {matchLabels: {name: mcp-extractor}}}
+      ports: [{protocol: TCP, port: 8000}]
+    - to: [{namespaceSelector: {matchLabels: {name: mcp-servers}}}]
+      ports: [{protocol: TCP, port: 8443}]
+    - to: [{ipBlock: {cidr: 0.0.0.0/0, except: ["192.168.0.0/16"]}}]
+      ports: [{protocol: TCP, port: 443}, {protocol: UDP, port: 53}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: default-deny, namespace: mcp-orch}
+spec: {podSelector: {}, policyTypes: [Ingress, Egress]}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: orch-egress, namespace: mcp-orch}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to: [{namespaceSelector: {matchLabels: {name: mcp-policy}}}]
+      ports: [{protocol: TCP, port: 8090}]
+    - to: []
+      ports: [{protocol: UDP, port: 53}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: default-deny, namespace: mcp-user}
+spec: {podSelector: {}, policyTypes: [Egress]}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: console-egress, namespace: mcp-user}
+spec:
+  podSelector: {matchLabels: {app: user-console}}
+  policyTypes: [Egress]
+  egress:
+    - to: [{namespaceSelector: {matchLabels: {name: mcp-policy}}}]
+      ports: [{protocol: TCP, port: 8090}]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: default-deny, namespace: mcp-servers}
+spec: {podSelector: {}, policyTypes: [Ingress]}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: servers-from-engine, namespace: mcp-servers}
+spec:
+  podSelector: {matchLabels: {kind: mcp-server}}
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{namespaceSelector: {matchLabels: {name: mcp-policy}}}]
+      ports: [{protocol: TCP, port: 8443}]

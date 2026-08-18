@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Namespace
+metadata: {name: mcp-policy,    labels: {name: mcp-policy,    trust: tcb}}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: mcp-orch,      labels: {name: mcp-orch,      trust: tcb}}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: mcp-client,    labels: {name: mcp-client,    trust: tcb}}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: mcp-user,      labels: {name: mcp-user,      trust: authority}}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: mcp-planner,   labels: {name: mcp-planner,   trust: untrusted}}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: mcp-extractor, labels: {name: mcp-extractor, trust: untrusted}}
+---
+apiVersion: v1
+kind: Namespace
+metadata: {name: mcp-servers,   labels: {name: mcp-servers,   trust: external}}
