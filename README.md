@@ -12,7 +12,8 @@ transmitted must be admitted by a plan that was validated, authorized by the
 user, and frozen *before* execution began. The property holds regardless of
 whether any model in the system is aligned.
 
-> **Paper:** *Secure Architecture Design for MCP* — under review.
+> **Paper:** *Policy CheckMate : MCP Policy Enforcement for
+Potentially Misaligned Models* — under review.
 > Preprint: `https://PLACEHOLDER-PAPER-URL` (to appear).
 
 ## How it works
