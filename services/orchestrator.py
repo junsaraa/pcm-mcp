@@ -21,16 +21,26 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from engine import hooks
 from engine.types import (SessionState, Plan, Step, Slot, SlotKind, Tag, Cursor)
-from engine.classes import ToolClasses, DEFAULT_TABLE
+from engine.classes import ToolClasses
 from engine.advisory import build_guardrail
 from engine.verdict import Decision
 from services.qllm import QLLM
 from services.mcp_client import MCPClient
 
-TC = ToolClasses(DEFAULT_TABLE)
 GR = build_guardrail()
-BUDGET = {"amplification": {"max_calls_per_plan_step": 5,
-                            "max_calls_per_input_document": 3}}
+CALL_BOUND = 8
+
+def simulated_user(plan, tool_classes, call_bound=8):
+    """Harness stand-in for the human at IP-4: approves resolved irreversible
+    steps serving the stated task; refuses over-bound plans at a glance."""
+    conf = {}
+    if plan.total_calls() <= call_bound:
+        conf["call_bound"] = True
+    for st in plan.steps:
+        if not st.is_extraction and tool_classes.classify(st.server, st.tool) == "irreversible":
+            conf[st.step_id] = True
+    return conf
+
 
 
 # ---- static plans, one per workload --------------------------------------
@@ -43,7 +53,8 @@ def plan_A(prompt):
             Slot("max_price", SlotKind.LITERAL, "number", 50)]),
         Step(1, "amazon", "search", is_extraction=True, slots=[
             Slot("price", SlotKind.DERIVED, "number", domain=[0, 50],
-                 source_var="v0", required_prov=frozenset({"amazon"}))]),
+                 source_var="v0", required_prov=frozenset({"amazon"}),
+                 request="the cheapest")]),
         Step(2, "amazon", "place_order", [
             Slot("max_charge", SlotKind.DERIVED, "number", source_var="v1",
                  required_prov=frozenset({"amazon"}))]),
@@ -57,7 +68,8 @@ def plan_B(prompt):
             Slot("repo", SlotKind.LITERAL, "text", "myorg/webapp")]),
         Step(1, "github", "read_last_issue", is_extraction=True, slots=[
             Slot("summary", SlotKind.DERIVED, "text", source_var="v0",
-                 required_prov=frozenset({"github"}))]),
+                 required_prov=frozenset({"github"}),
+                 request="latest issues")]),
     ])
 
 
@@ -93,7 +105,7 @@ def run(workload, attack, qllm_backend):
     print(f"\n=== Workload {workload}  attack={attack or 'none'}  "
           f"qllm={qllm_backend} ===")
     s = SessionState(session_id=str(uuid.uuid4())[:8])
-    s.budget = BUDGET
+    TC = ToolClasses()
     client = MCPClient()
     q = QLLM(backend=qllm_backend, attack=attack)
 
@@ -103,7 +115,7 @@ def run(workload, attack, qllm_backend):
         v = hooks.ip1_server_identity(s, name, f"sha256:{name}", True, True)
         if not trace("IP-1", v): return
         tools = client.list_tools(name)
-        v = hooks.ip2_tool_list(s, name, tools, GR)
+        v = hooks.ip2_tool_list(s, name, tools, GR, TC)
         if not trace("IP-2", v): return
 
     # ---- user prompt: IP-3 ----
@@ -111,15 +123,12 @@ def run(workload, attack, qllm_backend):
                               [n for n, _ in SERVERS[workload]], GR)
     if not trace("IP-3", v): return
 
-    # ---- plan: IP-4, IP-4b ----
+    # ---- plan: IP-4 (validation and authorization, one point) ----
     plan = {"A": plan_A, "B": plan_B}.get(workload,
             lambda p: plan_C(p, attack))(PROMPTS[workload])
-    v = hooks.ip4_plan(s, plan, TC)
+    v = hooks.ip4_plan(s, plan, TC, simulated_user(plan, TC, CALL_BOUND), CALL_BOUND)
     if not trace("IP-4", v):
-        print("  --> plan rejected; attack stopped here."); return
-    v = hooks.ip4b_authorise(s, plan, TC, confirmations={})
-    if not trace("IP-4b", v):
-        print("  --> not authorised (irreversible step unconfirmed)."); return
+        print("  --> plan rejected or not authorized; attack stopped here."); return
 
     # ---- execute ----
     env = {}   # var name -> (value, tag)
@@ -129,7 +138,9 @@ def run(workload, attack, qllm_backend):
             inv = f"inv-{uuid.uuid4().hex[:6]}"
             s.inflight[inv] = step.slots[0]
             resp = q.extract(str(src_val), {"name": step.slots[0].name,
-                                            "type": step.slots[0].type}, inv)
+                                            "type": step.slots[0].type,
+                                            "request": step.slots[0].request,
+                                            "domain": step.slots[0].domain}, inv)
             v = hooks.ip5_value(s, resp, step.slots[0], str(src_val), src_tag)
             if not trace("IP-5", v):
                 print(f"  --> value rejected: {resp}. attack stopped."); return

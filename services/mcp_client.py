@@ -11,23 +11,29 @@ USE_MOCK = os.environ.get("MCP_MOCK", "1") == "1"
 _MOCK_TOOLS = {
     "amazon": [
         {"name": "search", "description": "Search Amazon for products under a price",
+         "annotations": {"readOnlyHint": True},
          "inputSchema": {"type": "object", "properties": {
              "query": {"type": "string"}, "max_price": {"type": "number"}}}},
         {"name": "place_order", "description": "Place an order up to max_charge",
+         "annotations": {"readOnlyHint": False, "destructiveHint": True},
          "inputSchema": {"type": "object", "properties": {
              "item_id": {"type": "string"}, "max_charge": {"type": "number"}}}},
     ],
     "github": [
         {"name": "read_last_issue", "description": "Read the latest issue",
+         "annotations": {"readOnlyHint": True},
          "inputSchema": {"type": "object", "properties": {"repo": {"type": "string"}}}},
         {"name": "update_file", "description": "Write content to a file",
+         "annotations": {"readOnlyHint": False, "destructiveHint": True},
          "inputSchema": {"type": "object", "properties": {
              "path": {"type": "string"}, "content": {"type": "string"}}}},
     ],
     "grammarly": [
         {"name": "load", "description": "Load a document",
+         "annotations": {"readOnlyHint": True},
          "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}}},
         {"name": "process-text", "description": "Grammar-check, 1 credit per call",
+         "annotations": {"readOnlyHint": False, "destructiveHint": False},
          "inputSchema": {"type": "object", "properties": {"doc": {"type": "string"}}}},
     ],
 }

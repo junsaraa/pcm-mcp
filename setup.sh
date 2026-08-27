@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # One-command Path 2 setup. Creates the cluster, installs Calico, builds and
 # loads images, applies all seven namespaces, and verifies isolation.
-# No manual mkdir, no missing files. Run from the mcpmon/ directory.
+# No manual mkdir, no missing files. Run from the pcm-mcp/ directory.
 set -euo pipefail
-CL=mcpmon
+CL=pcm-mcp
 
 echo "==> 1/6 create kind cluster (Calico CNI for NetworkPolicy)"
 kind create cluster --name $CL --config k8s/kind-config.yaml
@@ -11,12 +11,12 @@ kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/
 kubectl -n kube-system wait --for=condition=Ready pod -l k8s-app=calico-node --timeout=300s
 
 echo "==> 2/6 build images"
-docker build -t mcpmon/engine:dev  -f docker/Dockerfile.engine  .
-docker build -t mcpmon/servers:dev -f docker/Dockerfile.servers .
+docker build -t pcm-mcp/engine:dev  -f docker/Dockerfile.engine  .
+docker build -t pcm-mcp/servers:dev -f docker/Dockerfile.servers .
 
 echo "==> 3/6 load images into cluster"
-kind load docker-image mcpmon/engine:dev  --name $CL
-kind load docker-image mcpmon/servers:dev --name $CL
+kind load docker-image pcm-mcp/engine:dev  --name $CL
+kind load docker-image pcm-mcp/servers:dev --name $CL
 
 echo "==> 4/6 apply manifests (7 namespaces)"
 kubectl apply -f k8s/00-namespaces.yaml

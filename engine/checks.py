@@ -86,64 +86,107 @@ def slot_refines_schema(plan, schemas) -> CheckResult:
     return _ok("ip4.slot-refines")
 
 
-def amplification(plan, budget) -> CheckResult:
-    per_step = budget["amplification"]["max_calls_per_plan_step"]
-    for step in plan.steps:
-        if step.repeat > per_step:
-            return _no("ip4.amplification",
-                       f"{step.tool} repeats {step.repeat}x (bound {per_step})")
-    return _ok("ip4.amplification")
+def call_bound(plan, bound, confirmed) -> CheckResult:
+    """Aggregate abuse is visible as the total number of tool calls. Exceeding
+    the default bound is not rejected outright but escalated: it requires the
+    user's confirmation of the full plan, as if irreversible."""
+    n = plan.total_calls()
+    if n > bound and not confirmed:
+        return _no("ip4.call-bound",
+                   f"{n} calls exceed default bound {bound}; escalated, not confirmed")
+    return _ok("ip4.call-bound")
 
 
-def dataflow(plan, tool_classes) -> CheckResult:
-    """DFS over the single-assignment plan DAG. A cross-server or state-changing
-    sink fed by an untrusted value needs a declassify() step declared."""
+def flow_policy(plan, tool_classes, confirmations) -> CheckResult:
+    """One rule over the plan's statically-known dataflow: a derived value may
+    be used only as an argument to a call on the server that produced it. A
+    cross-server use in a state-changing call is admitted only if the user
+    confirmed that step (the sole path by which a plan's reach may widen)."""
     var_source = {}            # var -> producing step
-    declassified = set()       # (var, dest_server) pairs the plan declared
     for step in plan.steps:
-        if step.tool == "declassify":
-            v = step.slots[0].source_var
-            declassified.add((v, step.slots[0].value))
-            continue
         for slot in step.slots:
             if slot.kind is SlotKind.DERIVED and slot.source_var in var_source:
-                src = var_source[slot.source_var]
+                origin = var_source[slot.source_var]
                 cls = tool_classes.classify(step.server, step.tool)
-                crosses = step.server != src.server
-                # A value may flow back to a write on ITS OWN server without
-                # declassification (same provenance). Declassification is needed
-                # only when the value crosses to a DIFFERENT server, or reaches
-                # an irreversible sink.
-                if (crosses or cls == "irreversible"):
-                    if (slot.source_var, step.server) not in declassified:
-                        return _no("ip4.dataflow",
-                                   f"{src.server}->{step.server}.{step.tool} ({cls}) "
-                                   f"no declassification declared")
-        # record this step's output variable name convention: v{step_id}
+                if step.server != origin.server and cls in ("write", "irreversible"):
+                    if not confirmations.get(step.step_id, False):
+                        return _no("ip4.flow",
+                                   f"{origin.server}->{step.server}.{step.tool} "
+                                   f"({cls}) cross-server use not confirmed")
         var_source[f"v{step.step_id}"] = step
-    return _ok("ip4.dataflow")
+    return _ok("ip4.flow")
+
+
+def confirmed_flow_pairs(plan) -> set:
+    """(origin_server, dest_server) pairs for cross-server derived uses; recorded
+    on ALLOW so IP-6 can re-check at transmission what IP-4 admitted."""
+    pairs, var_source = set(), {}
+    for step in plan.steps:
+        for slot in step.slots:
+            if slot.kind is SlotKind.DERIVED and slot.source_var in var_source:
+                origin = var_source[slot.source_var]
+                if step.server != origin.server:
+                    pairs.add((origin.server, step.server))
+        var_source[f"v{step.step_id}"] = step
+    return pairs
+
+
+_PLACEHOLDER = re.compile(r"\{v\d+\}")
+
+
+def request_grounded(plan) -> CheckResult:
+    """The extraction request is itself grounded like a literal: its fixed words
+    must be a span of the user prompt, and any {vN} placeholder must reference
+    an earlier binding. This is what makes the planner author no free text."""
+    bound = set()
+    for step in plan.steps:
+        if step.is_extraction:
+            slot = step.slots[0]
+            req = getattr(slot, "request", None)
+            if not req:
+                return _no("ip4.request-grounded",
+                           f"extraction step {step.step_id} declares no request")
+            for ref in _PLACEHOLDER.findall(req):
+                if ref[1:-1] not in bound:
+                    return _no("ip4.request-grounded",
+                               f"request references unbound {ref}")
+            for frag in _PLACEHOLDER.split(req):
+                frag = frag.strip()
+                if len(frag) > 2 and not is_span_of(frag, plan.prompt):
+                    return _no("ip4.request-grounded",
+                               f"request fragment {frag!r} not in prompt")
+        bound.add(f"v{step.step_id}")
+    return _ok("ip4.request-grounded")
 
 
 # ---- IP-5 ----------------------------------------------------------------
 CONTROL_KEYS = {"method", "tool_name", "params", "jsonrpc", "server", "arguments"}
 
 
-def no_control_content(raw: dict) -> CheckResult:
+def value_type(raw: dict, slot) -> CheckResult:
+    """A response is a single value of the declared type, nothing else. A reply
+    carrying control fields, or no value, or a value of the wrong shape, is
+    ill-typed -- there is no separate notion of 'suspicious content'."""
     found = CONTROL_KEYS & set(raw.keys())
-    return (_no("ip5.no-control", f"value carries control fields {sorted(found)}")
-            if found else _ok("ip5.no-control"))
+    if found:
+        return _no("ip5.value-type", f"carries control fields {sorted(found)}, "
+                                     f"expected one {slot.type} value")
+    if "value" not in raw:
+        return _no("ip5.value-type", "no value in response")
+    v = raw["value"]
+    if slot.type == "number" and (not isinstance(v, (int, float)) or isinstance(v, bool)):
+        return _no("ip5.value-type", f"expected number, got {type(v).__name__}")
+    if slot.type in ("text", "enum") and not isinstance(v, str):
+        return _no("ip5.value-type", f"expected {slot.type}, got {type(v).__name__}")
+    return _ok("ip5.value-type")
 
 
 def value_domain(value, slot) -> CheckResult:
-    if slot.type == "number":
-        if not isinstance(value, (int, float)) or isinstance(value, bool):
-            return _no("ip5.value-domain", f"expected number, got {type(value).__name__}")
+    if slot.type == "number" and slot.domain:
         lo, hi = slot.domain
         if not (lo <= value <= hi):
             return _no("ip5.value-domain", f"{value} outside [{lo},{hi}]")
     elif slot.type == "text":
-        if not isinstance(value, str):
-            return _no("ip5.value-domain", "expected text")
         if slot.max_length and len(value) > slot.max_length:
             return _no("ip5.value-domain", f"len {len(value)} > {slot.max_length}")
     elif slot.type == "enum":
@@ -155,13 +198,6 @@ def value_domain(value, slot) -> CheckResult:
 def span_grounded(value, source_text) -> CheckResult:
     return (_ok("ip5.span-grounded") if is_span_of(value, source_text)
             else _no("ip5.span-grounded", f"{value!r} not in source"))
-
-
-def provenance(source_tag: Tag, slot) -> CheckResult:
-    if slot.required_prov and not (source_tag.sources <= slot.required_prov):
-        return _no("ip5.provenance",
-                   f"sources {set(source_tag.sources)} not within {set(slot.required_prov)}")
-    return _ok("ip5.provenance")
 
 
 def invocation_id(response, inflight) -> CheckResult:
@@ -178,12 +214,23 @@ def destination_in_cursor(message, cursor, plan) -> CheckResult:
                      f"{message['server']} not admissible at cursor {cursor.admissible}"))
 
 
-def egress_readers(message, arg_tags: list[Tag]) -> CheckResult:
+def flow_admitted(message, arg_tags: list[Tag], confirmed_flows: set) -> CheckResult:
+    """Re-check at transmission what IP-4 admitted: a derived argument travels
+    only to its producing server, unless the user confirmed the cross-server
+    use at authorization."""
+    dest = message["server"]
     for tag in arg_tags:
-        if tag and message["server"] not in tag.readers:
-            return _no("ip6.egress-readers",
-                       f"value from {set(tag.sources)} may not be read by {message['server']}")
-    return _ok("ip6.egress-readers")
+        if not tag:
+            continue
+        if dest in tag.sources:
+            continue
+        if any((org, dest) in confirmed_flows for org in tag.sources):
+            continue
+        if tag.trust == "trusted":          # prompt-grounded: user's own words
+            continue
+        return _no("ip6.flow-admitted",
+                   f"value from {set(tag.sources)} not admitted to {dest}")
+    return _ok("ip6.flow-admitted")
 
 
 def attestation_unchanged(server, recorded, live_digest) -> CheckResult:
@@ -208,8 +255,16 @@ def response_id(response, open_requests) -> CheckResult:
     return _ok("ip7.response-id")
 
 
-def no_credential_elicitation(response) -> CheckResult:
-    elic = str(response.get("elicitation", "")).lower()
-    if any(w in elic for w in ("password", "api key", "token", "credential", "cvv")):
-        return _no("ip7.no-cred-elicitation", "server elicits sensitive credentials")
-    return _ok("ip7.no-cred-elicitation")
+def elicitation_expected(response, plan, cursor) -> CheckResult:
+    """Elicitation is permitted only where the current plan step expects it.
+    What a server asks for matters less than what the answer may touch: an
+    elicited value carries the eliciting server's provenance and is confined
+    like any other server-produced value."""
+    if "elicitation" not in response:
+        return _ok("ip7.elicitation")
+    if plan is None or cursor is None:
+        return _no("ip7.elicitation", "elicitation outside any plan step")
+    for i in cursor.admissible:
+        if i < len(plan.steps) and getattr(plan.steps[i], "expects_elicitation", False):
+            return _ok("ip7.elicitation")
+    return _no("ip7.elicitation", "no admissible plan step expects elicitation")

@@ -20,7 +20,7 @@ spec:
       serviceAccountName: policy-engine
       containers:
         - name: engine
-          image: mcpmon/engine:dev
+          image: pcm-mcp/engine:dev
           imagePullPolicy: IfNotPresent
           ports: [{containerPort: 8090}]
           env:
@@ -48,7 +48,7 @@ spec:
     spec:
       containers:
         - name: orchestrator
-          image: mcpmon/engine:dev
+          image: pcm-mcp/engine:dev
           command: ["python","-m","http.server","8080"]
           ports: [{containerPort: 8080}]
 ---
@@ -69,7 +69,7 @@ spec:
     spec:
       containers:
         - name: client
-          image: mcpmon/engine:dev
+          image: pcm-mcp/engine:dev
           command: ["python","-m","http.server","8070"]
           ports: [{containerPort: 8070}]
 ---
@@ -90,7 +90,7 @@ spec:
     spec:
       containers:
         - name: console
-          image: mcpmon/engine:dev
+          image: pcm-mcp/engine:dev
           command: ["python","-m","http.server","3000"]
           ports: [{containerPort: 3000}]
 ---
@@ -111,7 +111,7 @@ spec:
     spec:
       containers:
         - name: model
-          image: mcpmon/engine:dev
+          image: pcm-mcp/engine:dev
           command: ["python","-m","http.server","8000"]
           ports: [{containerPort: 8000}]
 ---
@@ -132,7 +132,7 @@ spec:
     spec:
       containers:
         - name: model
-          image: mcpmon/engine:dev
+          image: pcm-mcp/engine:dev
           command: ["python","-m","http.server","8000"]
           ports: [{containerPort: 8000}]
 ---
@@ -152,7 +152,7 @@ spec:
     metadata: {labels: {app: amazon-mcp, kind: mcp-server}}
     spec:
       containers:
-        - {name: server, image: mcpmon/servers:dev, args: ["amazon"], ports: [{containerPort: 8443}]}
+        - {name: server, image: pcm-mcp/servers:dev, args: ["amazon"], ports: [{containerPort: 8443}]}
 ---
 apiVersion: v1
 kind: Service
@@ -169,7 +169,7 @@ spec:
     metadata: {labels: {app: github-mcp, kind: mcp-server}}
     spec:
       containers:
-        - {name: server, image: mcpmon/servers:dev, args: ["github"], ports: [{containerPort: 8443}]}
+        - {name: server, image: pcm-mcp/servers:dev, args: ["github"], ports: [{containerPort: 8443}]}
 ---
 apiVersion: v1
 kind: Service
@@ -186,7 +186,7 @@ spec:
     metadata: {labels: {app: grammarly-mcp, kind: mcp-server}}
     spec:
       containers:
-        - {name: server, image: mcpmon/servers:dev, args: ["grammarly"], ports: [{containerPort: 8443}]}
+        - {name: server, image: pcm-mcp/servers:dev, args: ["grammarly"], ports: [{containerPort: 8443}]}
 ---
 apiVersion: v1
 kind: Service

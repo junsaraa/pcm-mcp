@@ -3,7 +3,7 @@
 ## What to run
 
 ```bash
-cd mcpmon
+cd pcm-mcp
 bash setup.sh                                   # create + populate the cluster
 bash k8s/run-workload-job.sh A A2               # run one workload+attack in-cluster
 bash k8s/verify-isolation.sh                    # prove model isolation
@@ -25,7 +25,7 @@ python -m tests.test_attacks
 
 ## What runs where
 
-The cluster has **7 namespaces / 9 pods**. One image (`mcpmon/engine:dev`) is
+The cluster has **7 namespaces / 9 pods**. One image (`pcm-mcp/engine:dev`) is
 reused for every component; the entrypoint differs per pod.
 
 | Namespace     | Pod           | Port | Command in prototype                     | Real role |

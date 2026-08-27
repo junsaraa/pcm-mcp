@@ -26,6 +26,9 @@ class Slot:
     max_length: int | None = None
     source_var: str | None = None            # for DERIVED: which earlier var
     required_prov: frozenset[str] = frozenset()
+    request: str | None = None               # extraction request: fixed words are
+                                             # a span of the prompt; {vN} refers
+                                             # to an earlier binding
 
 
 @dataclass
@@ -34,8 +37,9 @@ class Step:
     server: str
     tool: str
     slots: list[Slot] = field(default_factory=list)
-    repeat: int = 1                          # amplification: calls in this step
+    repeat: int = 1                          # calls this step issues
     is_extraction: bool = False              # a Q-LLM extract, not a tool call
+    expects_elicitation: bool = False        # IP-7: elicitation admissible here
 
 
 @dataclass
@@ -97,6 +101,8 @@ class SessionState:
     prompt_hash: str = ""
     plan: Plan | None = None
     cursor: Cursor | None = None
+    plan_hash: str | None = None             # the authorization token's hash
+    confirmed_flows: set = field(default_factory=set)
 
     capability_set: set[tuple[str, str]] = field(default_factory=set)
     tool_schemas: dict = field(default_factory=dict)       # "server.tool" -> schema

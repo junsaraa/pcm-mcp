@@ -33,7 +33,7 @@ def load_plan(plan_json, prompt, domains=None):
                 type=sl.get("type"),
                 value=value,
                 domain=domains.get((i, sl["name"])),
-                source_var=sl.get("source_var"),
+                source_var=sl.get("source_var"), request=sl.get("request"),
                 required_prov=frozenset({st["server"]}) if kind is SlotKind.DERIVED
                               else frozenset(),
             ))
