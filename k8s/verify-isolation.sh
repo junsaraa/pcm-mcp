@@ -9,7 +9,7 @@ check() {  # name  ns/svc:port  expect(block|reach)
   if [ "$out" = "$4" ]; then echo "  OK  $1: $out"; else echo "  XX  $1: $out (wanted $4)"; fail=1; fi
 }
 echo "Isolation checks (from q-llm pod):"
-check "q-llm -> amazon server" amazon-mcp.mcp-servers.svc 8443 block
+check "q-llm -> bestshopping server" bestshopping-mcp.mcp-servers.svc 8443 block
 check "q-llm -> user console"  user-console.mcp-user.svc  3000 block
 check "q-llm -> policy engine" policy-engine.mcp-policy.svc 8090 block
 [ $fail -eq 0 ] && echo "PASS: models are isolated." || { echo "FAIL: NetworkPolicy not enforced?"; exit 1; }

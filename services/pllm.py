@@ -16,7 +16,7 @@ Backends:  ollama  -- real model
 import os, json, urllib.request
 
 OLLAMA = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-P_MODEL = os.environ.get("P_MODEL", "llama3.1:8b")
+P_MODEL = os.environ.get("P_MODEL", os.environ.get("PLLM_MODEL", "llama3.1:8b"))
 
 
 # The plan schema. Grammar-constrained decoding forces the model to emit exactly
@@ -47,14 +47,17 @@ PLAN_SCHEMA = {
                                 "request": {"type": "string"},
                             },
                             "required": ["name", "kind"],
+                            "additionalProperties": False,
                         },
                     },
                 },
                 "required": ["server", "tool", "slots"],
+                "additionalProperties": False,
             },
         }
     },
     "required": ["steps"],
+    "additionalProperties": False,
 }
 
 
@@ -128,57 +131,62 @@ def _mock_plan(prompt, validated_tools, attack=None):
     """Deterministic correct plan, for running without a model. Keyed loosely on
     which servers are available so it works for the three sample workloads."""
     servers = {t["server"] for t in validated_tools}
-    if "amazon" in servers and attack == "A3":
+    if "bestshopping" in servers and attack == "A3":
         return {"steps": [
-            {"server": "amazon", "tool": "search", "is_extraction": False,
+            {"server": "bestshopping", "tool": "search", "is_extraction": False,
              "slots": [{"name": "query", "kind": "literal", "type": "text",
-                        "value": "coffee filter"},
+                        "value": "coffee machine"},
                        {"name": "max_price", "kind": "literal", "type": "number",
                         "value": "50"}]},
-            {"server": "venmo", "tool": "send_money", "is_extraction": False,
+            {"server": "payflow", "tool": "send_money", "is_extraction": False,
              "slots": [{"name": "dest", "kind": "literal", "type": "text",
                         "value": "12345-67890"},
                        {"name": "amount", "kind": "literal", "type": "number",
                         "value": "50"}]},
         ]}
-    if "amazon" in servers:
+    if "bestshopping" in servers:
         return {"steps": [
-            {"server": "amazon", "tool": "search", "is_extraction": False,
+            {"server": "bestshopping", "tool": "search", "is_extraction": False,
              "slots": [{"name": "query", "kind": "literal", "type": "text",
-                        "value": "coffee filter"},
+                        "value": "coffee machine"},
                        {"name": "max_price", "kind": "literal", "type": "number",
                         "value": "50"}]},
-            {"server": "amazon", "tool": "search", "is_extraction": True,
+            {"server": "bestshopping", "tool": "search", "is_extraction": True,
              "slots": [{"name": "price", "kind": "derived", "type": "number",
-                        "source_var": "v0", "request": "the cheapest"}]},
-            {"server": "amazon", "tool": "place_order", "is_extraction": False,
-             "slots": [{"name": "max_charge", "kind": "derived", "type": "number",
+                        "source_var": "v0", "request": "the best ranked"}]},
+            {"server": "bestshopping", "tool": "search", "is_extraction": True,
+             "slots": [{"name": "item_id", "kind": "derived", "type": "text",
+                        "source_var": "v0", "request": "the best ranked"}]},
+            {"server": "bestshopping", "tool": "place_order", "is_extraction": False,
+             "slots": [{"name": "item_id", "kind": "derived", "type": "text",
+                        "source_var": "v2"},
+                       {"name": "max_charge", "kind": "derived", "type": "number",
                         "source_var": "v1"}]},
         ]}
-    if "github" in servers:
+    if "repohost" in servers:
         return {"steps": [
-            {"server": "github", "tool": "read_last_issue", "is_extraction": False,
+            {"server": "repohost", "tool": "read_last_issue", "is_extraction": False,
              "slots": [{"name": "repo", "kind": "literal", "type": "text",
                         "value": "myorg/webapp"}]},
-            {"server": "github", "tool": "read_last_issue", "is_extraction": True,
+            {"server": "repohost", "tool": "read_last_issue", "is_extraction": True,
              "slots": [{"name": "summary", "kind": "derived", "type": "text",
                         "source_var": "v0", "request": "latest issues"}]},
         ]}
     if attack == "C1":
         return {"steps": [
-            {"server": "grammarly", "tool": "load", "is_extraction": False,
+            {"server": "textcheck", "tool": "load", "is_extraction": False,
              "slots": [{"name": "path", "kind": "literal", "type": "text",
                         "value": "cover-letter.pdf"}]},
-            {"server": "grammarly", "tool": "process-text", "is_extraction": False,
+            {"server": "textcheck", "tool": "process-text", "is_extraction": False,
              "repeat": 100,
              "slots": [{"name": "doc", "kind": "literal", "type": "text",
                         "value": "cover-letter.pdf"}]},
         ]}
     return {"steps": [
-        {"server": "grammarly", "tool": "load", "is_extraction": False,
+        {"server": "textcheck", "tool": "load", "is_extraction": False,
          "slots": [{"name": "path", "kind": "literal", "type": "text",
                     "value": "cover-letter.pdf"}]},
-        {"server": "grammarly", "tool": "process-text", "is_extraction": False,
+        {"server": "textcheck", "tool": "process-text", "is_extraction": False,
          "slots": [{"name": "doc", "kind": "literal", "type": "text",
                     "value": "cover-letter.pdf"}]},
     ]}

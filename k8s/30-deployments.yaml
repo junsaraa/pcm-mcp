@@ -144,51 +144,51 @@ spec: {selector: {app: q-llm}, ports: [{port: 8000, targetPort: 8000}]}
 # --- MCP servers (external): one per workload ---
 apiVersion: apps/v1
 kind: Deployment
-metadata: {name: amazon-mcp, namespace: mcp-servers}
+metadata: {name: bestshopping-mcp, namespace: mcp-servers}
 spec:
   replicas: 1
-  selector: {matchLabels: {app: amazon-mcp, kind: mcp-server}}
+  selector: {matchLabels: {app: bestshopping-mcp, kind: mcp-server}}
   template:
-    metadata: {labels: {app: amazon-mcp, kind: mcp-server}}
+    metadata: {labels: {app: bestshopping-mcp, kind: mcp-server}}
     spec:
       containers:
-        - {name: server, image: pcm-mcp/servers:dev, args: ["amazon"], ports: [{containerPort: 8443}]}
+        - {name: server, image: pcm-mcp/servers:dev, args: ["bestshopping"], ports: [{containerPort: 8443}]}
 ---
 apiVersion: v1
 kind: Service
-metadata: {name: amazon-mcp, namespace: mcp-servers}
-spec: {selector: {app: amazon-mcp}, ports: [{port: 8443, targetPort: 8443}]}
+metadata: {name: bestshopping-mcp, namespace: mcp-servers}
+spec: {selector: {app: bestshopping-mcp}, ports: [{port: 8443, targetPort: 8443}]}
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata: {name: github-mcp, namespace: mcp-servers}
+metadata: {name: repohost-mcp, namespace: mcp-servers}
 spec:
   replicas: 1
-  selector: {matchLabels: {app: github-mcp, kind: mcp-server}}
+  selector: {matchLabels: {app: repohost-mcp, kind: mcp-server}}
   template:
-    metadata: {labels: {app: github-mcp, kind: mcp-server}}
+    metadata: {labels: {app: repohost-mcp, kind: mcp-server}}
     spec:
       containers:
-        - {name: server, image: pcm-mcp/servers:dev, args: ["github"], ports: [{containerPort: 8443}]}
+        - {name: server, image: pcm-mcp/servers:dev, args: ["repohost"], ports: [{containerPort: 8443}]}
 ---
 apiVersion: v1
 kind: Service
-metadata: {name: github-mcp, namespace: mcp-servers}
-spec: {selector: {app: github-mcp}, ports: [{port: 8443, targetPort: 8443}]}
+metadata: {name: repohost-mcp, namespace: mcp-servers}
+spec: {selector: {app: repohost-mcp}, ports: [{port: 8443, targetPort: 8443}]}
 ---
 apiVersion: apps/v1
 kind: Deployment
-metadata: {name: grammarly-mcp, namespace: mcp-servers}
+metadata: {name: textcheck-mcp, namespace: mcp-servers}
 spec:
   replicas: 1
-  selector: {matchLabels: {app: grammarly-mcp, kind: mcp-server}}
+  selector: {matchLabels: {app: textcheck-mcp, kind: mcp-server}}
   template:
-    metadata: {labels: {app: grammarly-mcp, kind: mcp-server}}
+    metadata: {labels: {app: textcheck-mcp, kind: mcp-server}}
     spec:
       containers:
-        - {name: server, image: pcm-mcp/servers:dev, args: ["grammarly"], ports: [{containerPort: 8443}]}
+        - {name: server, image: pcm-mcp/servers:dev, args: ["textcheck"], ports: [{containerPort: 8443}]}
 ---
 apiVersion: v1
 kind: Service
-metadata: {name: grammarly-mcp, namespace: mcp-servers}
-spec: {selector: {app: grammarly-mcp}, ports: [{port: 8443, targetPort: 8443}]}
+metadata: {name: textcheck-mcp, namespace: mcp-servers}
+spec: {selector: {app: textcheck-mcp}, ports: [{port: 8443, targetPort: 8443}]}

@@ -95,8 +95,22 @@ def call_bound(plan, bound, confirmed) -> CheckResult:
         return _no("ip4.call-bound",
                    f"{n} calls exceed default bound {bound}; escalated, not confirmed")
     return _ok("ip4.call-bound")
+def call_bound(plan, bound, confirmed) -> CheckResult:
+    """Aggregate abuse is visible as the total number of tool calls. Exceeding
+    the default bound is not rejected outright but escalated: it requires the
+    user's confirmation of the full plan, as if irreversible."""
+    n = plan.total_calls()
+    if n > bound and not confirmed:
+        return _no("ip4.call-bound",
+                   f"{n} calls exceed default bound {bound}; escalated, not confirmed")
+    return _ok("ip4.call-bound")
 
 
+def flow_policy(plan, tool_classes, confirmations) -> CheckResult:
+    """One rule over the plan's statically-known dataflow: a derived value may
+    be used only as an argument to a call on the server that produced it. A
+    cross-server use in a state-changing call is admitted only if the user
+    confirmed that step (the sole path by which a plan's reach may widen)."""
 def flow_policy(plan, tool_classes, confirmations) -> CheckResult:
     """One rule over the plan's statically-known dataflow: a derived value may
     be used only as an argument to a call on the server that produced it. A
@@ -107,7 +121,27 @@ def flow_policy(plan, tool_classes, confirmations) -> CheckResult:
         for slot in step.slots:
             if slot.kind is SlotKind.DERIVED and slot.source_var in var_source:
                 origin = var_source[slot.source_var]
+                origin = var_source[slot.source_var]
                 cls = tool_classes.classify(step.server, step.tool)
+                if step.server != origin.server and cls in ("write", "irreversible"):
+                    if not confirmations.get(step.step_id, False):
+                        return _no("ip4.flow",
+                                   f"{origin.server}->{step.server}.{step.tool} "
+                                   f"({cls}) cross-server use not confirmed")
+        var_source[f"v{step.step_id}"] = step
+    return _ok("ip4.flow")
+
+
+def confirmed_flow_pairs(plan) -> set:
+    """(origin_server, dest_server) pairs for cross-server derived uses; recorded
+    on ALLOW so IP-6 can re-check at transmission what IP-4 admitted."""
+    pairs, var_source = set(), {}
+    for step in plan.steps:
+        for slot in step.slots:
+            if slot.kind is SlotKind.DERIVED and slot.source_var in var_source:
+                origin = var_source[slot.source_var]
+                if step.server != origin.server:
+                    pairs.add((origin.server, step.server))
                 if step.server != origin.server and cls in ("write", "irreversible"):
                     if not confirmations.get(step.step_id, False):
                         return _no("ip4.flow",
@@ -157,20 +191,49 @@ def request_grounded(plan) -> CheckResult:
                                f"request fragment {frag!r} not in prompt")
         bound.add(f"v{step.step_id}")
     return _ok("ip4.request-grounded")
+    return pairs
+
+
+_PLACEHOLDER = re.compile(r"\{v\d+\}")
+
+
+def request_grounded(plan) -> CheckResult:
+    """The extraction request is itself grounded like a literal: its fixed words
+    must be a span of the user prompt, and any {vN} placeholder must reference
+    an earlier binding. This is what makes the planner author no free text."""
+    bound = set()
+    for step in plan.steps:
+        if step.is_extraction:
+            slot = step.slots[0]
+            req = getattr(slot, "request", None)
+            if not req:
+                return _no("ip4.request-grounded",
+                           f"extraction step {step.step_id} declares no request")
+            for ref in _PLACEHOLDER.findall(req):
+                if ref[1:-1] not in bound:
+                    return _no("ip4.request-grounded",
+                               f"request references unbound {ref}")
+            for frag in _PLACEHOLDER.split(req):
+                frag = frag.strip()
+                if len(frag) > 2 and not is_span_of(frag, plan.prompt):
+                    return _no("ip4.request-grounded",
+                               f"request fragment {frag!r} not in prompt")
+        bound.add(f"v{step.step_id}")
+    return _ok("ip4.request-grounded")
 
 
 # ---- IP-5 ----------------------------------------------------------------
-CONTROL_KEYS = {"method", "tool_name", "params", "jsonrpc", "server", "arguments"}
 
 
 def value_type(raw: dict, slot) -> CheckResult:
     """A response is a single value of the declared type, nothing else. A reply
     carrying control fields, or no value, or a value of the wrong shape, is
     ill-typed -- there is no separate notion of 'suspicious content'."""
-    found = CONTROL_KEYS & set(raw.keys())
-    if found:
-        return _no("ip5.value-type", f"carries control fields {sorted(found)}, "
-                                     f"expected one {slot.type} value")
+    extra = set(raw.keys()) - {"invocation_id", "value", "valid"}
+    if extra:
+        return _no("ip5.value-type", f"reply carries fields {sorted(extra)} "
+                                     f"beyond the declared single {slot.type} "
+                                     f"value; not one value of the declared type")
     if "value" not in raw:
         return _no("ip5.value-type", "no value in response")
     v = raw["value"]
@@ -219,6 +282,11 @@ def flow_admitted(message, arg_tags: list[Tag], confirmed_flows: set) -> CheckRe
     only to its producing server, unless the user confirmed the cross-server
     use at authorization."""
     dest = message["server"]
+def flow_admitted(message, arg_tags: list[Tag], confirmed_flows: set) -> CheckResult:
+    """Re-check at transmission what IP-4 admitted: a derived argument travels
+    only to its producing server, unless the user confirmed the cross-server
+    use at authorization."""
+    dest = message["server"]
     for tag in arg_tags:
         if not tag:
             continue
@@ -231,7 +299,7 @@ def flow_admitted(message, arg_tags: list[Tag], confirmed_flows: set) -> CheckRe
         return _no("ip6.flow-admitted",
                    f"value from {set(tag.sources)} not admitted to {dest}")
     return _ok("ip6.flow-admitted")
-
+        
 
 def attestation_unchanged(server, recorded, live_digest) -> CheckResult:
     if recorded and recorded != live_digest:
@@ -255,6 +323,19 @@ def response_id(response, open_requests) -> CheckResult:
     return _ok("ip7.response-id")
 
 
+def elicitation_expected(response, plan, cursor) -> CheckResult:
+    """Elicitation is permitted only where the current plan step expects it.
+    What a server asks for matters less than what the answer may touch: an
+    elicited value carries the eliciting server's provenance and is confined
+    like any other server-produced value."""
+    if "elicitation" not in response:
+        return _ok("ip7.elicitation")
+    if plan is None or cursor is None:
+        return _no("ip7.elicitation", "elicitation outside any plan step")
+    for i in cursor.admissible:
+        if i < len(plan.steps) and getattr(plan.steps[i], "expects_elicitation", False):
+            return _ok("ip7.elicitation")
+    return _no("ip7.elicitation", "no admissible plan step expects elicitation")
 def elicitation_expected(response, plan, cursor) -> CheckResult:
     """Elicitation is permitted only where the current plan step expects it.
     What a server asks for matters less than what the answer may touch: an

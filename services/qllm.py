@@ -15,7 +15,7 @@ bytes either way and blocks identically.
 import os, json, urllib.request
 
 OLLAMA = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-Q_MODEL = os.environ.get("Q_MODEL", "llama3.2:3b")
+Q_MODEL = os.environ.get("Q_MODEL", os.environ.get("QLLM_MODEL", "llama3.2:3b"))
 
 
 def _ollama_chat(system, user, schema):
@@ -104,8 +104,14 @@ class QLLM:
                     "arguments": {"path": "README.md", "content": "author info"}}
         # honest: pull the first number, or echo a short span
         import re
-        if slot["type"] == "number":
-            m = re.search(r"\d+\.?\d*", source_text)
+        if "id" in slot.get("name", "").lower():
+            m = re.search(r"item ([A-Z0-9-]+)", source_text)
             return {"invocation_id": invocation_id,
-                    "value": float(m.group()) if m else 0.0}
+                    "value": m.group(1) if m else ""}
+        if slot["type"] == "number":
+            m = (re.search(r"price[^0-9]*(\d+\.?\d*)", source_text)
+                 or re.search(r"(\d+\.\d+)", source_text)
+                 or re.search(r"(\d+)", source_text))
+            return {"invocation_id": invocation_id,
+                    "value": float(m.group(1)) if m else 0.0}
         return {"invocation_id": invocation_id, "value": source_text[:80]}
