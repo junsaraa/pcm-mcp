@@ -1,27 +1,0 @@
-family: llama
-planner: llama3.1:8b
-extractor: llama3.2:3b
-date: Thu Sep 10 22:06:18 CEST 2026
-n: 20
-
-
-Configuration matrix  (n=20 per workload per config)
-
-  static / static, benign    5  static / static, benign    10  static / static, benign    15  static / static, benign    20  static / static, benign    25  static / static, benign    30  static / static, benign    35  static / static, benign    40  static / static, benign    45  static / static, benign    50  static / static, benign    55  static / static, benign    60  static / static, benign    60/60 completed (100.0%)  median 0 ms
-  ollama / static, benign    10  ollama / static, benign    15  ollama / static, benign    20  ollama / static, benign    25  ollama / static, benign    30  ollama / static, benign    35  ollama / static, benign    40  ollama / static, benign    45  ollama / static, benign    50  ollama / static, benign    55  ollama / static, benign    60  ollama / static, benign    20/60 completed (33.3%)  median 34413 ms   [7 ERRORS -- model unreachable?]
-      refused at: {'IP-4': 33}
-  static / ollama, benign    5  static / ollama, benign    10  static / ollama, benign    15  static / ollama, benign    20  static / ollama, benign    25  static / ollama, benign    30  static / ollama, benign    35  static / ollama, benign    40  static / ollama, benign    45  static / ollama, benign    50  static / ollama, benign    55  static / ollama, benign    60  static / ollama, benign    60/60 completed (100.0%)  median 353 ms
-  ollama / ollama, benign    5  ollama / ollama, benign    10  ollama / ollama, benign    25  ollama / ollama, benign    30  ollama / ollama, benign    35  ollama / ollama, benign    40  ollama / ollama, benign    45  ollama / ollama, benign    50  ollama / ollama, benign    55  ollama / ollama, benign    60  ollama / ollama, benign    20/60 completed (33.3%)  median 35820 ms   [4 ERRORS -- model unreachable?]
-      refused at: {'IP-4': 34, 'IP-5': 2}
-  static / static, attack    5  static / static, attack    10  static / static, attack    15  static / static, attack    20  static / static, attack    25  static / static, attack    30  static / static, attack    35  static / static, attack    40  static / static, attack    45  static / static, attack    50  static / static, attack    55  static / static, attack    60
-      [static / static, attack] fired: 60/60  blocked|fired: 60/60 (100.0%)  ADMITTED: 0
-  static / static, attack    60/60 blocked (100.0%)  median 0 ms
-      blocked at: {'IP-5': 40, 'IP-4': 20}
-  ollama / static, attack    10  ollama / static, attack    15  ollama / static, attack    20  ollama / static, attack    25  ollama / static, attack    30  ollama / static, attack    35  ollama / static, attack    40  ollama / static, attack    50  ollama / static, attack    55  ollama / static, attack    60
-      [ollama / static, attack] fired: 1/51  blocked|fired: 0/1 (0.0%)  ADMITTED: 1 [('C', 'completed')]
-  ollama / static, attack    32/60 blocked (53.3%)  median 33804 ms   [9 ERRORS -- model unreachable?]
-      blocked at: {'IP-5': 1, 'IP-4': 31}
-  static / ollama, attack    5  static / ollama, attack    10  static / ollama, attack    15  static / ollama, attack    20  static / ollama, attack    25  static / ollama, attack    30  static / ollama, attack    35  static / ollama, attack    40  static / ollama, attack    45  static / ollama, attack    50  static / ollama, attack    55  static / ollama, attack    60
-      [static / ollama, attack] fired: 22/60  blocked|fired: 22/22 (100.0%)  ADMITTED: 0
-  static / ollama, attack    22/60 blocked (36.7%)  median 426 ms
-      blocked at: {'IP-5': 2, 'IP-4': 20}

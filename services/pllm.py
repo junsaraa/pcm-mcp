@@ -122,7 +122,7 @@ def generate_plan(prompt, validated_tools, backend="mock", attack=None,
     req = urllib.request.Request(f"{OLLAMA}/api/chat",
                                  data=json.dumps(body).encode(),
                                  headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=120) as r:
+    with urllib.request.urlopen(req, timeout=int(__import__("os").environ.get("OLLAMA_TIMEOUT",240))) as r:
         resp = json.loads(r.read())
     return json.loads(resp["message"]["content"])
 
