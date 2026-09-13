@@ -1,7 +1,7 @@
 # Policy CheckMate — a plan-confining host architecture for the Model Context Protocol
 
 **pcm-mcp** (Policy CheckMate - MCP) is a research prototype of an MCP host in
-which **no language model is trusted** — not the models behind the servers,
+which **no language model is trusted**, not the models behind the servers,
 and not the host's own backbone model. Prior MCP security work protects the
 model from a hostile ecosystem; pcm-mcp additionally treats the model as a
 possible adversary: one that emits actions the user did not ask for, whether
@@ -29,15 +29,14 @@ check consults, terminates every transport, and mints every trusted
 artefact (the authorization token binding user approval to the hash of one
 plan; single-use invocation identifiers). The **Orchestrator** executes the
 frozen plan and is the sole constructor of MCP messages. The **MCP Client**
-holds per-server session state only — no socket — and is untrusted for
+holds per-server session state only, no socket, and is untrusted for
 confinement.
 
 Mediation happens at **ten introspection points** (IP-0…IP-8, IP-N), placed
 on every data flow between components, following the Linux Security Modules
 convention: a policy may deny an operation, never grant one. Deterministic
 checks return ALLOW/DENY; advisory checks (scanners, classifiers) return a
-distinct type admitting only DENY/ABSTAIN, so — enforced by the type
-system — no model-based check can permit what the deterministic checks did
+distinct type admitting only DENY/ABSTAIN, so no model-based check can permit what the deterministic checks did
 not.
 
 ## The three attacks
