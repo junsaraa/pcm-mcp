@@ -4,9 +4,10 @@
 # exercises the real namespaces and NetworkPolicy: only mcp-orch is permitted
 # to reach the engine.
 #
-# usage: bash k8s/run-workload-job.sh A A2
+# usage: bash k8s/run-workload-job.sh A attackID|A|B|C|null
 set -euo pipefail
 W="${1:?workload A|B|C}"; ATK="${2:-null}"
+case "$ATK" in A) ATK=A2;; B) ATK=B1;; C) ATK=C1;; esac   # A/B/C aliases
 [ "$ATK" = "null" ] && BODY="{\"workload\":\"$W\",\"qllm\":\"mock\"}" \
                     || BODY="{\"workload\":\"$W\",\"attack\":\"$ATK\",\"qllm\":\"mock\"}"
 

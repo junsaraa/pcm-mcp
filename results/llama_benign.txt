@@ -1,14 +1,0 @@
-family: llama
-planner: llama3.1:8b
-extractor: llama3.2:3b
-mode: benign  n: 1  date: Sun Sep 13 16:35:51 CEST 2026
-
-
-Configuration matrix  (n=1 per workload per config)
-
-  static / static, benign    3/3 completed (100.0%)  median 0 ms
-
-      error types: {'TimeoutError': 1}
-  llama3.1:8b / static, benign 1/3 completed (33.3%)  median 32186 ms   [1 ERRORS -- model unreachable?]
-      refused at: {'IP-4': 1}
-  static / llama3.2:3b, benign 3/3 completed (100.0%)  median 303 ms

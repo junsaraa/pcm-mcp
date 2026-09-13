@@ -205,4 +205,5 @@ if __name__ == "__main__":
     ap.add_argument("--qllm", default="mock", choices=["mock", "ollama", "adversarial"])
     ap.add_argument("--attack", default=None, help="e.g. A2, B1")
     a = ap.parse_args()
+    a.attack = {"A": "A2", "B": "B1", "C": "C1"}.get(a.attack, a.attack)
     main(a.workload, a.pllm, a.qllm, a.attack)
