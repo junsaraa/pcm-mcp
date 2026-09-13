@@ -68,7 +68,7 @@ isolation test; they do not yet run their own service logic (see "Missing").
 - `verdict.py` — `Decision` (allow/deny), `Advice` (deny/abstain only), `combine()`.
 - `checks.py` — every deterministic check (domain, span, grounding, dataflow, amplification, …).
 - `hooks.py` — one function per introspection point; assembles checks, calls `combine()`, mutates state on allow.
-- `advisory.py` — guardrail client (mock or Shieldstral); returns only `Advice`.
+- `advisory.py` — guardrail client (mock or a generic HTTP scanner); returns only `Advice`.
 - `classes.py` — tool classification (read/write/irreversible/metered), default irreversible.
 
 **services/ (untrusted periphery + wiring)**

@@ -37,11 +37,11 @@ for the paper's limitations section.
 
 ## 4. The guardrail is a mock
 - Where: `engine/advisory.py` — `build_guardrail()` returns `MockGuardrail`
-  unless `GUARDRAIL_BACKEND=shieldstral`. The mock flags only overt injection
+  unless `GUARDRAIL_BACKEND=http`. The mock flags only overt injection
   markers.
-- Missing: serve Shieldstral (e.g. vLLM sidecar in the policy-engine pod) and
+- Missing: serve a scanner model (e.g. a vLLM sidecar in the policy-engine pod) and
   verify the `/classify` request/response shape against the model card; the
-  `ShieldstralGuardrail` client in the same file is a placeholder for that shape.
+  `HTTPGuardrail` client in the same file is a placeholder for that shape.
 
 ## 5. The Action Plan can be static
 - Where: `services/policy_service.py` and `orchestrator.py` use fixed

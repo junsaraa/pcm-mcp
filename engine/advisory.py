@@ -4,7 +4,7 @@ Advisory layer. Confined to IP-2 / IP-3 / IP-7 and returns only Advice
 the mechanism, and a slow model must not halt the system.
 
 MockGuardrail flags text containing obvious injection markers, so the pipeline
-runs with no GPU. Swap ShieldstralGuardrail in once you have the model serving;
+runs with no GPU. Swap HTTPGuardrail in once a scanner service is available;
 verify its request/response shape against the model card first.
 """
 import os
@@ -32,8 +32,10 @@ class MockGuardrail:
     def server_output(self, o):    return self._advise("ip7.output-scan", o, "injection")
 
 
-class ShieldstralGuardrail(MockGuardrail):
-    SOURCE = "shieldstral-1.0-3b"
+class HTTPGuardrail(MockGuardrail):
+    """Generic client for any external scanner exposing a /classify
+    endpoint (a served safety model, MCP-Scan-style service, etc.)."""
+    SOURCE = "http-scanner"
 
     def __init__(self, base_url):
         import httpx  # only needed for the real model; keeps core deps minimal
@@ -56,6 +58,6 @@ class ShieldstralGuardrail(MockGuardrail):
 
 def build_guardrail():
     url = os.environ.get("GUARDRAIL_URL")
-    if url and os.environ.get("GUARDRAIL_BACKEND", "mock") == "shieldstral":
-        return ShieldstralGuardrail(url)
+    if url and os.environ.get("GUARDRAIL_BACKEND", "mock") == "http":
+        return HTTPGuardrail(url)
     return MockGuardrail()
