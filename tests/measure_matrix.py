@@ -71,9 +71,16 @@ def one_run(w, pllm, qllm, attack):
 
 
 def main(n, emit_latex, rows="all"):
+    import os as _os
+    _pl = _os.environ.get("PLLM_MODEL", "llama3.1:8b")
+    _ql = _os.environ.get("QLLM_MODEL", "llama3.2:3b")
+
     print(f"\nConfiguration matrix  (n={n} per workload per config)\n")
     results = []
     for label, pllm, qllm, atk_marker in CONFIGS:
+        label = label.replace("ollama / ollama", f"{_pl} / {_ql}") \
+                     .replace("ollama /", f"{_pl} /") \
+                     .replace("/ ollama", f"/ {_ql}")
         if rows == "benign" and atk_marker is not None: continue
         if rows == "attack" and atk_marker is None: continue
         is_attack = atk_marker is not None

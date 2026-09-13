@@ -82,6 +82,33 @@ def plan_C(p, attack):
 
 import hashlib
 
+try:                       # continue the chain across process restarts
+    with open(AUDIT) as _f:
+        _last = None
+        for _last in _f:
+            pass
+    if _last:
+        _audit_prev = "sha256:" + hashlib.sha256(
+            _last.rstrip("\n").encode()).hexdigest()[:32]
+except OSError:
+    pass
+
+
+def verify_audit_chain(path=None):
+    """Re-walk the audit log recomputing the hash chain; True iff intact."""
+    import os
+    p = path or AUDIT
+    if not os.path.exists(p):
+        return True
+    prev = "sha256:genesis"
+    for line in open(p):
+        rec = json.loads(line)
+        if rec["prev"] != prev:
+            return False
+        prev = "sha256:" + hashlib.sha256(line.rstrip("\n").encode()).hexdigest()[:32]
+    return True
+
+
 def _audit(v, artefact=None):
     """IP-8: append-only, hash-chained. Each record commits to its predecessor
     and to a hash of the artefact under review (plan, value, or message)."""
@@ -185,11 +212,12 @@ def run_workload(r: WorkloadReq):
             if not step("IP-6", hooks.ip6_transmit(s, msg, tags, f"sha256:{st.server}"), msg):
                 return {"trace": trace, "status": "blocked at IP-6"}
             result = client.call(st.server, st.tool, {})
-            v = hooks.ip7_response(s, st.server, {"id": msg["id"], "result": result}, GR)
+            v = hooks.ip7_response(s, st.server, {"id": msg["id"], "result": result}, GR, tool=st.tool)
             if not step("IP-7", v, result):
                 return {"trace": trace, "status": "blocked at IP-7"}
             env[f"v{st.step_id}"] = (result, s.tags[v.value_id])
         if s.cursor:
             s.cursor.advance(st.step_id, plan)
 
+    assert verify_audit_chain(), "audit chain broken"
     return {"trace": trace, "status": "completed (benign or non-deviating)"}

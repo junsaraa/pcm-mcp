@@ -150,9 +150,11 @@ def ip6_transmit(state, message, arg_tags, live_digest):
 
 
 # ---- IP-7 ----------------------------------------------------------------
-def ip7_response(state, server, response, guardrail):
+def ip7_response(state, server, response, guardrail, tool=None):
     det = [checks.response_id(response, state.open_requests),
-           checks.elicitation_expected(response, state.plan, state.cursor)]
+           checks.elicitation_expected(response, state.plan, state.cursor),
+           checks.output_schema_conforms(
+               response, state.output_schemas.get(f"{server}.{tool}"))]
     text = json.dumps(response.get("result", ""))
     adv = [guardrail.server_output(text)]
     v = combine("IP-7", det, adv)

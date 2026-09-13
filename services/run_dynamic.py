@@ -191,7 +191,7 @@ def main(w, pllm, qllm, attack):
                     if sl.kind is SlotKind.DERIVED and sl.source_var in env]
             if not trace("IP-6", hooks.ip6_transmit(s, msg, tags, f"sha256:{st.server}")): return
             result = client.call(st.server, st.tool, {})
-            v = hooks.ip7_response(s, st.server, {"id": msg["id"], "result": result}, GR)
+            v = hooks.ip7_response(s, st.server, {"id": msg["id"], "result": result}, GR, tool=st.tool)
             if not trace("IP-7", v): return
             env[f"v{st.step_id}"] = (result, s.tags[v.value_id])
         if s.cursor: s.cursor.advance(st.step_id, plan)

@@ -105,7 +105,8 @@ class SessionState:
     confirmed_flows: set = field(default_factory=set)
 
     capability_set: set[tuple[str, str]] = field(default_factory=set)
-    tool_schemas: dict = field(default_factory=dict)       # "server.tool" -> schema
+    tool_schemas: dict = field(default_factory=dict)
+    output_schemas: dict = field(default_factory=dict)       # "server.tool" -> schema
     known_tool_names: set[str] = field(default_factory=set)
 
     attestation: dict = field(default_factory=dict)        # server -> digest

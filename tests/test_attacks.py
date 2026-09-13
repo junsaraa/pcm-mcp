@@ -38,15 +38,12 @@ ANN = {"search": {"readOnlyHint": True}, "read_last_issue": {"readOnlyHint": Tru
 def fresh_session(servers_tools):
     s = SessionState(session_id="test")
     tc = ToolClasses()
-    tc = ToolClasses()
     for srv, tool, schema in servers_tools:
         s.capability_set.add((srv, tool))
         s.tool_schemas[f"{srv}.{tool}"] = schema
         s.known_tool_names.add(tool)
         s.attestation[srv] = f"sha256:{srv}"
         s.pinned_toollist[srv] = "pin"
-        tc.register(srv, tool, ANN.get(tool), attested=True)
-    return s, tc
         tc.register(srv, tool, ANN.get(tool), attested=True)
     return s, tc
 

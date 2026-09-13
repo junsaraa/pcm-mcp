@@ -349,3 +349,16 @@ def elicitation_expected(response, plan, cursor) -> CheckResult:
         if i < len(plan.steps) and getattr(plan.steps[i], "expects_elicitation", False):
             return _ok("ip7.elicitation")
     return _no("ip7.elicitation", "no admissible plan step expects elicitation")
+
+
+def output_schema_conforms(response, schema) -> CheckResult:
+    """IP-7: where the tool declares an outputSchema, the response's result
+    must validate against it. No declared schema -> vacuous ALLOW."""
+    if not schema:
+        return _ok("ip7.output-schema")
+    try:
+        import jsonschema
+        jsonschema.validate(response.get("result"), schema)
+        return _ok("ip7.output-schema")
+    except Exception as e:
+        return _no("ip7.output-schema", f"result does not conform: {e}"[:120])
