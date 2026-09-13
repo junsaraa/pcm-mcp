@@ -22,7 +22,7 @@ except ImportError:
 # --------------------------------------------------------------------------
 # bestshopping: a small real catalogue with a real search + a real order book.
 # --------------------------------------------------------------------------
-def build_amazon():
+def build_bestshopping():
     mcp = FastMCP("bestshopping")
     CATALOG = [
         {"item_id": "B0742C6P5R", "title": "Mini Single-Cup Drip Coffee Machine",
@@ -73,7 +73,7 @@ def build_amazon():
 # repohost: a real issue/file store. The injection lives in DATA the store
 # happens to hold -- it is not special-cased by the server.
 # --------------------------------------------------------------------------
-def build_github():
+def build_repohost():
     mcp = FastMCP("repohost")
     REPOS = {
         "myorg/webapp": {
@@ -125,7 +125,7 @@ def build_github():
 # textcheck: a real metered service. It counts real matches and debits a real
 # prepaid balance; the DoS shows up as balance depletion, not a fixed number.
 # --------------------------------------------------------------------------
-def build_grammarly():
+def build_textcheck():
     mcp = FastMCP("textcheck")
     DOCS = {}
     STATE = {"credits": 20}                       # prepaid balance
@@ -156,9 +156,9 @@ def build_grammarly():
     return mcp
 
 
-BUILDERS = {"bestshopping": (build_amazon, 8443),
-            "repohost": (build_github, 8444),
-            "textcheck": (build_grammarly, 8445)}
+BUILDERS = {"bestshopping": (build_bestshopping, 8443),
+            "repohost": (build_repohost, 8444),
+            "textcheck": (build_textcheck, 8445)}
 
 if __name__ == "__main__":
     if len(sys.argv) < 2 or sys.argv[1] not in BUILDERS:

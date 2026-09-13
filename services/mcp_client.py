@@ -10,7 +10,7 @@ USE_MOCK = os.environ.get("MCP_MOCK", "1") == "1"
 # Deterministic tool lists and results mirroring servers/workload_servers.py
 _MOCK_TOOLS = {
     "bestshopping": [
-        {"name": "search", "description": "Search Amazon for products under a price",
+        {"name": "search", "description": "Search the catalogue for products under a price",
          "annotations": {"readOnlyHint": True},
          "inputSchema": {"type": "object", "properties": {
              "query": {"type": "string"}, "max_price": {"type": "number"}}}},

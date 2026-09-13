@@ -22,7 +22,7 @@ from engine.verdict import Decision
 from tests.test_attacks import fresh_session, CALL_BOUND, NUM as SCHEMA
 
 random.seed(1)
-PROMPT = "Find a coffee machine under $50 on Amazon and order the best ranked one"
+PROMPT = "Find a coffee machine under $50 on bestshopping and order the best ranked one"
 SRC = "Best ranked coffee machine: Precision Brew 10-Cup, item B0PRBRW10C, price $43.99"
 NUM = dict(SCHEMA, properties=dict(SCHEMA["properties"],
           amount={"type": "number"}, to={"type": "string"},

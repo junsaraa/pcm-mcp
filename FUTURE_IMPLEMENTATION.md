@@ -50,8 +50,8 @@ for the paper's limitations section.
 - Missing: route `/run_workload` through `pllm.generate_plan` + `plan_loader`.
   Already implemented in `run_dynamic.py`; needs porting into the service.
 
-## 6. Grammarly document text is synthesised
-- Where: `servers/workload_servers.py` — `grammarly.load(path)` builds document
+## 6. Textcheck document text is synthesised
+- Where: `servers/workload_servers.py` — `textcheck.load(path)` builds document
   text from the path string rather than reading a file (there is no filesystem in
   the container).
 - Missing: mount a volume and read the actual document. The metering and

@@ -36,9 +36,9 @@ reused for every component; the entrypoint differs per pod.
 | mcp-user      | user-console  | 3000 | `python -m http.server` (placeholder)    | prompt + confirmations |
 | mcp-planner   | p-llm         | 8000 | `python -m http.server` (placeholder)    | generates the plan |
 | mcp-extractor | q-llm         | 8000 | `python -m http.server` (placeholder)    | extracts typed values |
-| mcp-servers   | amazon-mcp    | 8443 | `python -m servers.workload_servers amazon` | shopping server |
-| mcp-servers   | github-mcp    | 8443 | `... github`                              | repository server |
-| mcp-servers   | grammarly-mcp | 8443 | `... grammarly`                           | metered checker |
+| mcp-servers   | bestshopping-mcp    | 8443 | `python -m servers.workload_servers bestshopping` | shopping server |
+| mcp-servers   | repohost-mcp    | 8443 | `... repohost`                              | repository server |
+| mcp-servers   | textcheck-mcp | 8443 | `... textcheck`                           | metered checker |
 
 **Only the policy-engine pod runs real logic in the cluster.** The workload is
 driven by `run-workload-job.sh`, which starts a throwaway `curl` pod in
@@ -82,7 +82,7 @@ isolation test; they do not yet run their own service logic (see "Missing").
 
 **servers/**
 - `workload_servers.py` — the three real servers (search, issue store, metered checker).
-- `amazon/server.py`, `github/server.py`, `grammarly/server.py` — per-server entrypoints.
+- `bestshopping/server.py`, `repohost/server.py`, `textcheck/server.py` — per-server entrypoints.
 
 **k8s/**
 - `kind-config.yaml` — 2-node cluster, default CNI disabled.
